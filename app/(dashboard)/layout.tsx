@@ -14,7 +14,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .select('project_id, projects(id, name)')
     .eq('user_id', session.user.id)
 
-  const projects = (memberships ?? []).map((m) => m.projects as { id: string; name: string })
+  const projects = (memberships ?? [])
+    .map((m) => m.projects as unknown as { id: string; name: string })
+    .filter(Boolean)
 
   return (
     <div className="flex h-screen overflow-hidden">
