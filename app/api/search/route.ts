@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
-import { createEmbedding, generateAnswer } from '@/lib/openai'
+import { generateAnswer } from '@/lib/openai'
 import { canSearch, logSearch } from '@/lib/usage'
 import { z } from 'zod'
 
@@ -47,17 +47,16 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const embedding = await createEmbedding(query)
-
-  const { data: results, error } = await db.rpc('match_articles', {
-    query_embedding: embedding,
-    match_project_id: projectId,
-    match_count: 3,
-  })
+  // 全記事を取得してClaudeに渡す
+  const { data: allArticles, error } = await db
+    .from('articles')
+    .select('id, title, body, tags')
+    .eq('project_id', projectId)
+    .limit(10)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const context = (results ?? [])
+  const context = (allArticles ?? [])
     .map((r: any) => `## ${r.title}\n${r.body.slice(0, 800)}`)
     .join('\n\n---\n\n')
 
@@ -70,7 +69,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     query,
     answer,
-    results: results ?? [],
+    results: allArticles ?? [],
     remainingSearches: remaining === Infinity ? null : remaining - 1,
   })
 }

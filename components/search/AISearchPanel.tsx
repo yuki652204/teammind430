@@ -132,7 +132,7 @@ export default function AISearchPanel({ projectId }: Props) {
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         関連度: {Math.round(result.similarity * 100)}% ·{' '}
-                        {formatDistanceToNow(new Date(result.created_at), { addSuffix: true, locale: ja })}
+                        {formatDistanceToNow(new Date(result.created_at ?? Date.now()), { addSuffix: true, locale: ja })}
                       </p>
                     </div>
                     <span className="text-gray-300 group-hover:text-blue-400 ml-3">→</span>

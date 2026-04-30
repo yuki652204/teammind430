@@ -16,15 +16,11 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      // GitHub may return a null email when the user has set it to private.
-      // Fall back to the primary email exposed via the profile object, or
-      // generate a placeholder so we never reject a valid OAuth login.
       if (!user.email) {
         const githubEmail = (profile as any)?.email ?? null
         if (githubEmail) {
           user.email = githubEmail
         } else {
-          // GitHub private-email users: use the noreply address GitHub provides
           const githubLogin = (profile as any)?.login
           if (githubLogin) {
             user.email = `${githubLogin}@users.noreply.github.com`
@@ -36,17 +32,28 @@ export const authOptions: NextAuthOptions = {
 
       try {
         const db = createServiceClient()
-        await db.from('users').upsert(
-          {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            avatar: user.image,
-          },
-          { onConflict: 'email' }
-        )
+
+        const { data: existing } = await db
+          .from('users')
+          .select('id')
+          .eq('email', user.email)
+          .single()
+
+        if (existing) {
+          user.id = existing.id
+        } else {
+          const { data: newUser } = await db
+            .from('users')
+            .insert({
+              email: user.email,
+              name: user.name,
+              avatar: user.image,
+            })
+            .select('id')
+            .single()
+          if (newUser) user.id = newUser.id
+        }
       } catch (err) {
-        // Log but don't block login if the DB upsert fails
         console.error('[TeamMind] signIn upsert error:', err)
       }
 
